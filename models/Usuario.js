@@ -1,6 +1,7 @@
 import { DataTypes } from "sequelize";
 import { sequelize } from "../database/database.js";
 
+
 export const Usuario=sequelize.define("Usuario",{
     id:{
         type:DataTypes.INTEGER,
@@ -21,5 +22,5 @@ export const Usuario=sequelize.define("Usuario",{
     }
 },{
     freezeTableName:true
-}
-)
+});
+

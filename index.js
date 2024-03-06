@@ -1,7 +1,12 @@
 import express from "express";
+import { Sequelize, Op } from "sequelize";
 import { sequelize } from "./database/database.js";
 import { Usuario } from "./models/Usuario.js";
+import { Punto } from "./models/Punto.js";
+import { Punto_Usuario } from "./models/Punto_Usuario.js";
 import cors from "cors";
+import qrcode from 'qrcode';
+
 
 const app = express();
 const port = 3001;
@@ -82,6 +87,145 @@ app.post("/verificar-usuario", async (req, res) => {
         res.status(500).json({ mensaje: 'Error interno del servidor',res:false});
     }
 });
+
+app.post('/agregar-punto', async (req, res) => {
+  try {
+    const { latitud, longitud, lugar, puntos } = req.body;
+
+    // Generar el código QR con la información del punto
+    const qrCodeData = JSON.stringify({
+      latitud: latitud,
+      longitud: longitud,
+      lugar: lugar,
+      puntos: puntos
+    });
+
+    // Crear el código QR y obtener su representación en base64
+    const qrCodeBase64 = await qrcode.toDataURL(qrCodeData);
+
+    // Crear el punto con el código QR generado
+    const newpunto = await Punto.create({
+      latitud: latitud,
+      longitud: longitud,
+      lugar: lugar,
+      puntos: puntos,
+      codigoqr: qrCodeBase64
+    });
+
+    res.status(201).send({
+      mensaje: 'Punto creado',
+      res: true,
+      qrCodeBase64: qrCodeBase64 // Devolver la representación base64 del código QR generado
+    });
+  } catch (e) {
+    console.error('Error al crear punto: ', e);
+    res.status(500).send({ mensaje: 'Error interno en el servidor', res: false });
+  }
+});
+
+
+app.get('/obtener-puntos',async(req,res)=>{
+  try{
+    const Allpunto=await Punto.findAll({})
+
+    res.status(200).send({ mensaje: "Puntos obtenidos correctamente", puntos: Allpunto, success: true });
+
+  }catch(e){
+    console.error("Error al obtener punto: ",e );
+    res.status(500).send({mensaje:"Error interno en el servidor",res:false})
+  }
+})
+
+
+app.post('/realizar-punto', async (req, res) => {
+  try {
+    // Buscar el punto
+    const punto = await Punto.findOne({
+      where: {
+        id: req.body.id
+      }
+    });
+
+    if (!punto) {
+      return res.status(404).send({ mensaje: "Punto no encontrado", res: false });
+    }
+
+    // Buscar el usuario
+    const usuario = await Usuario.findOne({
+      where: {
+        nombre: req.body.nombre,
+        contrasena: req.body.contrasena
+      }
+    });
+
+    if (!usuario) {
+      return res.status(404).send({ mensaje: "Usuario no encontrado", res: false });
+    }
+
+    // Crear el usuario_punto de manera asincrónica
+    await Punto_Usuario.create({
+      UsuarioId: usuario.id,
+      PuntoId: punto.id
+    });
+
+    res.status(200).send({ mensaje: "Operación exitosa", res: true });
+  } catch (e) {
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+});
+
+app.get('/obtener-punto-realizar', async (req, res) => {
+  try {
+    // Obtener todos los registros de Punto_Usuario
+    const puntosUsuario = await Punto_Usuario.findAll({});
+
+    // Obtener un array con los PuntoId
+    const puntoIds = puntosUsuario.map(puntoUsuario => puntoUsuario.PuntoId);
+
+    // Consultar todos los registros de Punto con los PuntoId obtenidos
+    const puntos = await Punto.findAll({
+      where: {
+        id: {
+          [Sequelize.Op.in]: puntoIds
+        }
+      }
+    });
+
+    res.status(200).send({ mensaje: "Operación exitosa", res: true, puntos });
+
+  } catch (e) {
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+});
+
+
+
+app.post('/terminar-punto', async (req, res) => {
+  try {
+    const puntoUsuario = await Punto_Usuario.destroy({
+      where: {
+        id: req.body.id
+      }
+    });
+
+    if (!puntoUsuario) {
+      return res.status(404).send({ mensaje: "Punto de usuario no encontrado", res: false });
+    }
+
+    // Realiza las acciones necesarias para "terminar" el punto de usuario aquí
+
+    // Agrega un mensaje de éxito si es apropiado
+    res.status(200).send({ mensaje: "Operación exitosa", res: true });
+  } catch (e) {
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+});
+
+
+
 
 
 app.get('/',(req,res)=>{
