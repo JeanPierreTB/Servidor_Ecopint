@@ -3,7 +3,7 @@ import { Sequelize, Op } from "sequelize";
 import { sequelize } from "./database/database.js";
 import { Usuario } from "./models/Usuario.js";
 import { Punto } from "./models/Punto.js";
-import { Punto_Usuario } from "./models/Punto_Usuario.js";
+import { Punto_Usuario} from "./models/Punto_Usuario.js";
 import cors from "cors";
 import qrcode from 'qrcode';
 
@@ -199,6 +199,35 @@ app.get('/obtener-punto-realizar', async (req, res) => {
     res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
   }
 });
+
+
+app.post('/punto-realizado',async(req,res)=>{
+  try{
+    const punto=await Punto.findOne({
+      where:{
+        lugar:req.body.lugar
+      }
+    })
+    if(!punto){
+      return res.status(404).send({ mensaje: "Punto no encontrado", res: false });
+    }
+
+    
+
+    const Punto_Usuario1=await Punto_Usuario.destroy({
+      where:{
+        PuntoId:punto.id,
+      }
+    })
+
+    res.status(200).send({ mensaje: "Punto realizado", res: true,punto:punto });
+
+
+  }catch(e){
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+})
 
 
 
