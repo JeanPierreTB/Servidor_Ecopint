@@ -4,6 +4,8 @@ import { sequelize } from "./database/database.js";
 import { Usuario } from "./models/Usuario.js";
 import { Punto } from "./models/Punto.js";
 import { Punto_Usuario} from "./models/Punto_Usuario.js";
+import { Consejos } from "./models/Consejos.js";
+import { Comentario } from "./models/Comentario.js";
 import cors from "cors";
 import qrcode from 'qrcode';
 
@@ -247,6 +249,93 @@ app.post('/terminar-punto', async (req, res) => {
 
     // Agrega un mensaje de éxito si es apropiado
     res.status(200).send({ mensaje: "Operación exitosa", res: true });
+  } catch (e) {
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+});
+
+
+app.post('/agregar-consejo',async(req,res)=>{
+  try{
+    const consejo=await Consejos.create({
+      des:req.body.des,
+      dia:req.body.dia
+    })
+    res.status(201).send({mensaje:"Consejo creado",res:true});
+
+  }catch(e){
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+})
+
+app.get('/recuperar-consejos',async(req,res)=>{
+  try{
+    const diaactual=new Date().getDay() || 7;
+    const consejoshoy=await Consejos.findAll({
+      where:{
+        dia:diaactual
+      }
+    })
+    if(!consejoshoy){
+      return res.status(404).send({ mensaje: "Consejo no encontrado", res: false });
+    }
+
+    res.status(200).send({ mensaje: "Consejos encontrados", res: true,consejos:consejoshoy });
+
+  }catch(e){
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+})
+
+
+
+app.post('/realizar-comentario',async(req,res)=>{
+  try{
+
+    const usuarioc=await Usuario.findOne({
+      where:{
+        nombre:req.body.nombre,
+        contrasena:req.body.contrasena
+      }
+    })
+
+    if(!usuarioc){
+      return res.status(404).send({ mensaje: "Punto no encontrado", res: false });
+    }
+
+    const nuevocomentario=await Comentario.create({
+      des:req.body.des,
+      tipo:req.body.tipo,
+      idUsuario:usuarioc.id
+    })
+    res.status(201).send({mensaje:"Comentario creado",res:true});
+
+  }catch(e){
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+})
+
+
+app.get('/obtener-comentarios', async (req, res) => {
+  try {
+    // Obtén la fecha actual
+    const fechaHoy = new Date();
+    fechaHoy.setHours(0, 0, 0, 0);  // Establece la hora a las 00:00:00:000 para obtener los comentarios de todo el día
+
+    // Realiza la consulta para obtener los comentarios del día de hoy
+    const comentariosHoy = await Comentario.findAll({
+      where: {
+        createdAt: {
+          [Op.gte]: fechaHoy,
+        },
+      },
+    });
+
+    res.status(200).send({ comentarios: comentariosHoy, res: true });
   } catch (e) {
     console.error("Error al realizar la operación: ", e);
     res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
