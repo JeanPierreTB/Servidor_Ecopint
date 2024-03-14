@@ -6,6 +6,8 @@ import { Punto } from "./models/Punto.js";
 import { Punto_Usuario} from "./models/Punto_Usuario.js";
 import { Consejos } from "./models/Consejos.js";
 import { Comentario } from "./models/Comentario.js";
+import { Objetivo } from "./models/Objetivo.js";
+import { Objetivo_Usuario } from "./models/Objetivo_Usuario.js";
 import cors from "cors";
 import qrcode from 'qrcode';
 
@@ -333,6 +335,11 @@ app.get('/obtener-comentarios', async (req, res) => {
           [Op.gte]: fechaHoy,
         },
       },
+      include:[
+        {
+          model:Usuario
+        }
+      ]
     });
 
     res.status(200).send({ comentarios: comentariosHoy, res: true });
@@ -341,6 +348,42 @@ app.get('/obtener-comentarios', async (req, res) => {
     res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
   }
 });
+
+
+app.post('/agregar-objetivo',async(req,res)=>{
+  try{
+    const objetivo=await Objetivo.create({
+      des:req.body.des,
+      puntos:req.body.puntos,
+      dia:req.body.dia
+    })
+    res.status(201).send({mensaje:"Objetivo creado",res:true});
+
+  }catch(e){
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+})
+
+app.get('/recuperar-objetivo',async(req,res)=>{
+  try{
+    const diaactual=new Date().getDay() || 7;
+    const objetivo=await Objetivo.findAll({
+      where:{
+        dia:diaactual
+      }
+    })
+    if(!objetivo){
+      return res.status(404).send({ mensaje: "Objetivos no encontrados", res: false });
+    }
+
+    res.status(200).send({ mensaje: "Objetivos encontrados", res: true,objetivo:objetivo });
+
+  }catch(e){
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+})
 
 
 
