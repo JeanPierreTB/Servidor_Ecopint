@@ -19,6 +19,18 @@ export const Usuario=sequelize.define("Usuario",{
     },
     ntelefono:{
         type:DataTypes.INTEGER,
+    },
+    puntaje:{
+        type:DataTypes.INTEGER,
+        defaultValue:0
+    },
+    puntosrecilados:{
+        type:DataTypes.INTEGER,
+        defaultValue:0
+    },
+    foto:{
+        type:DataTypes.STRING,
+        defaultValue:null
     }
 },{
     freezeTableName:true
