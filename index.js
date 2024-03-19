@@ -60,7 +60,7 @@ app.post("/verificar-usuario", async (req, res) => {
     });
 
     if (usuario) {
-      res.status(200).json({ mensaje: "Usuario verificado correctamente",res:true});
+      res.status(200).json({ mensaje: "Usuario verificado correctamente",res:true,usuario:usuario});
     } else {
       res.status(401).json({ mensaje: "Nombre de usuario o contraseña incorrectos",res:false });
     }
@@ -157,20 +157,19 @@ app.post('/realizar-punto', async (req, res) => {
     }
 
     // Buscar el usuario
-    const usuario = await Usuario.findOne({
+    /*const usuario = await Usuario.findOne({
       where: {
-        nombre: req.body.nombre,
-        contrasena: req.body.contrasena
+        id:req.body.idu
       }
     });
 
     if (!usuario) {
       return res.status(404).send({ mensaje: "Usuario no encontrado", res: false });
-    }
+    }*/
 
     // Crear el usuario_punto de manera asincrónica
     await Punto_Usuario.create({
-      UsuarioId: usuario.id,
+      UsuarioId: req.body.idu,
       PuntoId: punto.id
     });
 
@@ -221,8 +220,7 @@ app.post('/punto-realizado',async(req,res)=>{
 
     const usuario=await Usuario.findOne({
       where:{
-        nombre:req.body.usuario,
-        contrasena:req.body.contrasena
+        id:req.body.id
       }
     })
 
@@ -239,8 +237,7 @@ app.post('/punto-realizado',async(req,res)=>{
       },
       {
         where: {
-          nombre: req.body.usuario,
-          contrasena: req.body.contrasena
+          id:req.body.id
         }
       }
     );
@@ -337,21 +334,20 @@ app.get('/recuperar-consejos',async(req,res)=>{
 app.post('/realizar-comentario',async(req,res)=>{
   try{
 
-    const usuarioc=await Usuario.findOne({
+    /*const usuarioc=await Usuario.findOne({
       where:{
-        nombre:req.body.nombre,
-        contrasena:req.body.contrasena
+        id:req.body.id
       }
     })
 
     if(!usuarioc){
       return res.status(404).send({ mensaje: "Punto no encontrado", res: false });
-    }
+    }*/
 
     const nuevocomentario=await Comentario.create({
       des:req.body.des,
       tipo:req.body.tipo,
-      idUsuario:usuarioc.id
+      idUsuario:req.body.id
     })
     res.status(201).send({mensaje:"Comentario creado",res:true});
 
@@ -430,8 +426,7 @@ app.post('/obtener-usuario',async(req,res)=>{
   try{
     const usuario=await Usuario.findOne({
       where:{
-        nombre:req.body.nombre,
-        contrasena:req.body.contraseña
+        id:req.body.id
       }
     })
 
@@ -451,8 +446,7 @@ app.post('/notas-usuario',async(req,res)=>{
   try{
     const usuario=await Usuario.findOne({
       where:{
-        nombre:req.body.nombre,
-        contrasena:req.body.contraseña
+        id:req.body.id
       }
     })
 
@@ -479,7 +473,7 @@ app.post('/notas-usuario',async(req,res)=>{
 
     const recompesaobtenidas=await Recompesa.count({
       where:{
-        idUsuario:usuario.id,
+        idUsuario:req.body.id,
       }
     })
 
@@ -487,7 +481,7 @@ app.post('/notas-usuario',async(req,res)=>{
       order:[['puntaje','DESC']]
     })
 
-    const poscionusuario=usuarios.findIndex(usuario=>(usuario.nombre===req.body.nombre && usuario.contrasena===req.body.contraseña))
+    const poscionusuario=usuarios.findIndex(usuario=>(usuario.id===req.body.id))
 
 
 
@@ -512,8 +506,7 @@ app.post('/actualizar-foto', async (req, res) => {
           { foto: req.body.foto },
           {
               where: {
-                  nombre: req.body.nombre,
-                  contrasena: req.body.contraseña
+                 id:req.body.id
               }
           }
       );
@@ -529,6 +522,53 @@ app.post('/actualizar-foto', async (req, res) => {
       res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
   }
 });
+
+
+app.post('/actualizar-datos-usuario', async (req, res) => {
+  try {
+    // Actualiza los datos del usuario en la base de datos
+    const usuario = await Usuario.update({
+      nombre: req.body.nombre,
+      contrasena: req.body.contrasena, // Corregí la escritura de "contrasena"
+      dni: req.body.dni,
+      ntelefono: req.body.ntelefono,
+    }, {
+      where: {
+        id: req.body.id
+      }
+    });
+
+    // Verifica si se actualizó correctamente
+    if (usuario[0] === 1) {
+      // Si se actualizó correctamente, envía una respuesta exitosa
+      res.status(200).send({ mensaje: "Datos de usuario actualizados correctamente", res: true });
+    } else {
+      // Si no se actualizó (porque el usuario no existe), envía un mensaje de error
+      res.status(404).send({ mensaje: "El usuario no existe", res: false });
+    }
+  } catch (e) {
+    // Si ocurre algún error durante la operación, maneja la excepción
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+});
+
+
+app.get('/rankings-usuarios',async(req,res)=>{
+  try{
+    const usuarios=await Usuario.findAll({
+      order:[['puntaje','DESC']]
+    })
+
+
+    res.status(200).send({ mensaje: "Rankings de usuarios", res: true,usuarios:usuarios});
+
+
+  }catch(e){
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+})
 
 
 
