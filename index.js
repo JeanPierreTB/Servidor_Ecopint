@@ -9,6 +9,7 @@ import { Comentario } from "./models/Comentario.js";
 import { Objetivo } from "./models/Objetivo.js";
 import { Objetivo_Usuario } from "./models/Objetivo_Usuario.js";
 import { Recompesa } from "./models/Recompesa.js";
+import { Usuario_Usuario } from "./models/Usuario_Usuario.js";
 import cors from "cors";
 import qrcode from 'qrcode';
 
@@ -562,6 +563,74 @@ app.get('/rankings-usuarios',async(req,res)=>{
 
 
     res.status(200).send({ mensaje: "Rankings de usuarios", res: true,usuarios:usuarios});
+
+
+  }catch(e){
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+})
+
+
+app.post('/agregar-amigos',async(req,res)=>{
+  try{
+    const usuario=await Usuario_Usuario.create({
+      UsuarioAId:req.body.idusuario,
+      UsuarioBId:req.body.idamigo
+    })
+
+    res.status(200).send({ mensaje: "Amigo agregado", res: true,usuario:usuario });
+
+
+
+  }catch(e){
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+})
+
+
+
+app.post('/todos-sin-amigos',async(req,res)=>{
+  try{
+    const usuario=await Usuario_Usuario.findAll({
+      where:{
+        UsuarioAId:req.body.id
+        
+      }
+    })
+    //console.log("Usuarion",usuario[0].UsuarioBId)
+
+    const usuario2=await Usuario_Usuario.findAll({
+      where:{
+        UsuarioBId:req.body.id
+      }
+    })
+
+    const idsAmigos = usuario.map(user => parseInt(user.UsuarioBId));
+    const idsAmigos2 = usuario2.map(user => parseInt(user.UsuarioAId));
+    idsAmigos.push(...idsAmigos2);
+    idsAmigos.push(parseInt(req.body.id));
+
+
+
+    const usuariosNoAmigos = await Usuario.findAll({
+      where: {
+        id: { 
+          [Sequelize.Op.notIn]: idsAmigos
+        }
+      }
+    });
+
+    if(!usuario){
+      return res.status(404).send({ mensaje: "Usuarios no encontrado", res: false });
+    }
+
+    res.status(200).send({ mensaje: "Usuarios encontrado", res: true,usuario:usuariosNoAmigos });
+
+
+
+
 
 
   }catch(e){
