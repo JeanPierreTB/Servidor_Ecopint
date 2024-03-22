@@ -10,6 +10,7 @@ import { Objetivo } from "./models/Objetivo.js";
 import { Objetivo_Usuario } from "./models/Objetivo_Usuario.js";
 import { Recompesa } from "./models/Recompesa.js";
 import { Usuario_Usuario } from "./models/Usuario_Usuario.js";
+import { Notifiacion } from "./models/Notificacion.js";
 import cors from "cors";
 import qrcode from 'qrcode';
 
@@ -571,15 +572,111 @@ app.get('/rankings-usuarios',async(req,res)=>{
   }
 })
 
+app.post('/ver-notifiaciones',async(req,res)=>{
+  try{
+    const noti=await Notifiacion.findAll({
+      where:{
+        idUsuario:req.body.id
+      },
+      
+    })
+
+    if(!noti){
+      return res.status(404).send({ mensaje: "Notificaciones no encontradas", res: false });
+    }
+
+    res.status(200).send({ mensaje: "Notificaciones encontradas", res: true,noti:noti });
+  }catch(e){
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+})
+
+
+app.post('/noti-agregar-amigo',async(req,res)=>{
+  try{
+    const noti=await Notifiacion.create({
+      des:req.body.des,
+      tipo:req.body.tipo,
+      idUsuario:req.body.idamigo,
+      nombre:req.body.nombre,
+      foto:req.body.foto
+    })
+
+    res.status(200).send({ mensaje: "Notificacion agregada", res: true,noti:noti });
+
+  }catch(e){
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+})
+
+app.post('/amigo-rechazado',async(req,res)=>{
+  try{
+
+    const usuario=await Usuario.findOne({
+      where:{
+        nombre:req.body.nombre
+      }
+    })
+    const noti=await Notifiacion.destroy({
+      where:{
+        nombre:req.body.nombre
+      }
+    })
+    
+
+    const noti2=await Notifiacion.create({
+      nombre:req.body.nombre1,
+      foto:req.body.foto,
+      des:req.body.des,
+      tipo:req.body.tipo,
+      idUsuario:usuario.id,
+    })
+
+    res.status(200).send({ mensaje: "Amigo rechazado", res: true });
+
+
+  }catch(e){
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+})
+
 
 app.post('/agregar-amigos',async(req,res)=>{
   try{
+
+    const usuarioi=await Usuario.findOne({
+      where:{
+        nombre:req.body.nombre
+      }
+    })
     const usuario=await Usuario_Usuario.create({
       UsuarioAId:req.body.idusuario,
-      UsuarioBId:req.body.idamigo
+      UsuarioBId:usuarioi.id
     })
 
-    res.status(200).send({ mensaje: "Amigo agregado", res: true,usuario:usuario });
+    const usuario1=await Usuario_Usuario.create({
+      UsuarioAId:usuarioi.id,
+      UsuarioBId:req.body.idusuario
+    })
+
+    const noti=await Notifiacion.destroy({
+      where:{
+        nombre:req.body.nombre
+      }
+    })
+
+    const noti2=await Notifiacion.create({
+      nombre:req.body.nombre1,
+      foto:req.body.foto,
+      des:req.body.des,
+      tipo:req.body.tipo,
+      idUsuario:usuarioi.id,
+    })
+
+    res.status(200).send({ mensaje: "Amigo agregado", res: true,usuario:usuario,usuario1:usuario1 });
 
 
 
@@ -589,6 +686,37 @@ app.post('/agregar-amigos',async(req,res)=>{
   }
 })
 
+
+
+app.post('/misamigos',async(req,res)=>{
+  try{
+    const amigos=await Usuario_Usuario.findAll({
+      where:{
+        UsuarioAId:req.body.id
+      }
+    })
+
+    const amistades=amigos.map(amigo=>amigo.UsuarioBId);
+
+    const amistadesinfo=await Usuario.findAll({
+      where:{
+        id:{
+          [Op.in]:amistades
+        }
+      }
+    })
+    if(!amigos){
+      return res.status(404).send({ mensaje: "Amigos no encontradas", res: false });
+
+    }
+    res.status(200).send({ mensaje: "Amigos encontrados", res: true, amigos:amistadesinfo });
+
+
+  }catch(e){
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+})
 
 
 app.post('/todos-sin-amigos',async(req,res)=>{
