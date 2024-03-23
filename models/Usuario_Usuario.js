@@ -1,6 +1,7 @@
 import { sequelize } from "../database/database.js";
 import { DataTypes } from "sequelize";
 import { Usuario } from "./Usuario.js";
+import { Comentario } from "./Comentario.js";
 
 
 export const  Usuario_Usuario= sequelize.define(
@@ -29,4 +30,12 @@ Usuario.belongsToMany(Usuario, {
     as: 'UsuariosB',
     foreignKey: 'UsuarioBId'
   });
+
+  Usuario.hasMany(Comentario,{
+    foreignKey:'idamigo'
+  })
+
+  Comentario.belongsTo(Usuario_Usuario,{
+    foreignKey:'idamigo'
+  })
   

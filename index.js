@@ -372,6 +372,9 @@ app.get('/obtener-comentarios', async (req, res) => {
         createdAt: {
           [Op.gte]: fechaHoy,
         },
+        tipo:{
+          [Op.ne]: 4
+        }
       },
       include:[
         {
@@ -657,10 +660,10 @@ app.post('/agregar-amigos',async(req,res)=>{
       UsuarioBId:usuarioi.id
     })
 
-    const usuario1=await Usuario_Usuario.create({
+    /*const usuario1=await Usuario_Usuario.create({
       UsuarioAId:usuarioi.id,
       UsuarioBId:req.body.idusuario
-    })
+    })*/
 
     const noti=await Notifiacion.destroy({
       where:{
@@ -676,7 +679,7 @@ app.post('/agregar-amigos',async(req,res)=>{
       idUsuario:usuarioi.id,
     })
 
-    res.status(200).send({ mensaje: "Amigo agregado", res: true,usuario:usuario,usuario1:usuario1 });
+    res.status(200).send({ mensaje: "Amigo agregado", res: true,usuario:usuario});
 
 
 
@@ -690,26 +693,56 @@ app.post('/agregar-amigos',async(req,res)=>{
 
 app.post('/misamigos',async(req,res)=>{
   try{
+   
+    
     const amigos=await Usuario_Usuario.findAll({
       where:{
         UsuarioAId:req.body.id
       }
     })
+    
 
-    const amistades=amigos.map(amigo=>amigo.UsuarioBId);
-
-    const amistadesinfo=await Usuario.findAll({
-      where:{
-        id:{
-          [Op.in]:amistades
+    if(amigos.length===0){
+      
+      const amigos2=await Usuario_Usuario.findAll({
+        where:{
+          UsuarioBId:req.body.id
         }
-      }
-    })
-    if(!amigos){
-      return res.status(404).send({ mensaje: "Amigos no encontradas", res: false });
+      })
+
+      const amistades2=amigos2.map(amigo=>amigo.UsuarioAId);
+      const amistadesinfo=await Usuario.findAll({
+        where:{
+          id:{
+            [Op.in]:amistades2
+          }
+        }
+      })
+      res.status(200).send({ mensaje: "Amigos encontrados", res: true, amigos:amistadesinfo });
+
+      
 
     }
-    res.status(200).send({ mensaje: "Amigos encontrados", res: true, amigos:amistadesinfo });
+    else{
+      const amistades=amigos.map(amigo=>amigo.UsuarioBId);
+      const amistadesinfo=await Usuario.findAll({
+        where:{
+          id:{
+            [Op.in]:amistades
+          }
+        }
+      })
+
+      res.status(200).send({ mensaje: "Amigos encontrados", res: true, amigos:amistadesinfo });
+
+
+
+    }
+
+    
+
+    
+    
 
 
   }catch(e){
@@ -727,6 +760,7 @@ app.post('/todos-sin-amigos',async(req,res)=>{
         
       }
     })
+    
     //console.log("Usuarion",usuario[0].UsuarioBId)
 
     const usuario2=await Usuario_Usuario.findAll({
@@ -761,6 +795,85 @@ app.post('/todos-sin-amigos',async(req,res)=>{
 
 
 
+  }catch(e){
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+})
+
+
+app.post('/recuperar-comentariouau',async(req,res)=>{
+  try{
+
+
+      
+      
+      const comentario=await Comentario.findAll({
+        where:{
+          idUsuario:req.body.id_usuario,
+          idamigo:req.body.id_amigo
+        },include:[{model:Usuario}]
+      })
+
+      const comentario2=await Comentario.findAll({
+        where:{
+          idUsuario:req.body.id_amigo,
+          idamigo:req.body.id_usuario
+        },include:[{model:Usuario}]
+      })
+
+      const comentarios=comentario.concat(comentario2)
+      const comentariosOrdenados = comentarios.sort((a, b) => a.id - b.id);
+
+
+      
+
+      res.status(200).send({ mensaje: "info encontrada", res: true,comentarios:comentariosOrdenados });
+
+
+
+
+      
+      
+
+
+
+      
+
+
+    
+
+    
+
+    
+
+   
+
+
+
+  }catch(e){
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+})
+
+app.post('/agregar-comentariouau',async(req,res)=>{
+  try{
+
+  
+      const comentario=await Comentario.create({
+        des:req.body.des,
+        tipo:req.body.tipo,
+        idUsuario:req.body.id_usuario,
+        idamigo:req.body.id_amigo
+      })
+    
+
+  
+    res.status(200).send({ mensaje: "Comentario creado", res: true });
+
+
+    
   }catch(e){
     console.error("Error al realizar la operación: ", e);
     res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
