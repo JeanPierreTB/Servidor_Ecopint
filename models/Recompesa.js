@@ -14,9 +14,17 @@ export const Recompesa=sequelize.define("Recompesa",{
     },
     des:{
         type:DataTypes.STRING,
+    },
+    fechaInicio: { // Columna para la fecha de inicio
+        type: DataTypes.DATE,
+        allowNull: false
+    },
+    fechaFin: { // Columna para la fecha de finalización
+        type: DataTypes.DATE,
+        allowNull: false
     }
 },{
-    freezeTableName:true
+    freezeTableName:true,
 });
 
 

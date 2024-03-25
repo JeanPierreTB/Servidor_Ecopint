@@ -11,6 +11,7 @@ import { Objetivo_Usuario } from "./models/Objetivo_Usuario.js";
 import { Recompesa } from "./models/Recompesa.js";
 import { Usuario_Usuario } from "./models/Usuario_Usuario.js";
 import { Notifiacion } from "./models/Notificacion.js";
+import moment from 'moment';
 import cors from "cors";
 import qrcode from 'qrcode';
 
@@ -172,7 +173,8 @@ app.post('/realizar-punto', async (req, res) => {
     // Crear el usuario_punto de manera asincrónica
     await Punto_Usuario.create({
       UsuarioId: req.body.idu,
-      PuntoId: punto.id
+      PuntoId: punto.id,
+      realizado:false
     });
 
     res.status(200).send({ mensaje: "Operación exitosa", res: true });
@@ -185,7 +187,11 @@ app.post('/realizar-punto', async (req, res) => {
 app.get('/obtener-punto-realizar', async (req, res) => {
   try {
     // Obtener todos los registros de Punto_Usuario
-    const puntosUsuario = await Punto_Usuario.findAll({});
+    const puntosUsuario = await Punto_Usuario.findAll({
+      where:{
+        realizado:false
+      }
+    });
 
     // Obtener un array con los PuntoId
     const puntoIds = puntosUsuario.map(puntoUsuario => puntoUsuario.PuntoId);
@@ -208,7 +214,92 @@ app.get('/obtener-punto-realizar', async (req, res) => {
 });
 
 
-app.post('/punto-realizado',async(req,res)=>{
+app.post('/punto-cancelado-qr',async(req,res)=>{
+  try{
+
+    if(req.body.lugarseleccionado===req.body.lugar){
+      const punto=await Punto.findOne({
+        where:{
+          latitud:req.body.latitud,
+          longitud:req.body.longitud,
+          lugar:req.body.lugar,
+          puntos:req.body.puntos
+        }
+        
+      })
+  
+      if(!punto){
+        return res.status(404).send({ mensaje: "Punto no encontrado", res: false });
+  
+      }
+
+      const usuario=await Usuario.findOne({
+        where:{
+          id:req.body.id
+        }
+      })
+  
+      if(!usuario){
+        return res.status(404).send({ mensaje: "Usuario no encontrado", res: false });
+      }
+  
+  
+      const usuarioActualizado = await Usuario.update(
+        { 
+          puntaje: usuario.puntaje + punto.puntos
+        
+        },
+        {
+          where: {
+            id:req.body.id
+          }
+        }
+      );
+      
+  
+      if(!usuarioActualizado){
+        return res.status(404).send({ mensaje: "Usuario no encontrado", res: false });
+      }
+
+      const Punto_Usuario1=await Punto_Usuario.update(
+        { 
+          realizado:true,
+          PuntoId:null
+        
+        },
+        {
+          where: {
+            PuntoId:punto.id,
+          }
+        }
+        
+        
+        
+      )
+
+      /*where:{
+          PuntoId:punto.id,
+        } */
+  
+
+      res.status(200).send({ mensaje: "Punto Realizado", res: true,punto:punto });
+
+    }
+
+    else{
+      return res.status(404).send({ mensaje: "Lugares no coinciden", res: false });
+    }
+    
+
+
+  }catch(e){
+    console.error("Error al realizar la operación: ", e);
+    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
+  }
+})
+
+
+app.post('/punto-cancelado',async(req,res)=>{
   try{
     console.log("body:",req.body)
     const punto=await Punto.findOne({
@@ -220,7 +311,18 @@ app.post('/punto-realizado',async(req,res)=>{
       return res.status(404).send({ mensaje: "Punto no encontrado", res: false });
     }
 
-    const usuario=await Usuario.findOne({
+    const Punto_Usuario1=await Punto_Usuario.destroy({
+      where:{
+        PuntoId:punto.id,
+      }
+    })
+
+    
+
+    res.status(200).send({ mensaje: "Punto Cancelado", res: true,punto:punto });
+
+
+    /*const usuario=await Usuario.findOne({
       where:{
         id:req.body.id
       }
@@ -247,7 +349,7 @@ app.post('/punto-realizado',async(req,res)=>{
 
     if(!usuarioActualizado){
       return res.status(404).send({ mensaje: "Usuario no encontrado", res: false });
-    }
+    }*/
 
 
 
@@ -255,16 +357,7 @@ app.post('/punto-realizado',async(req,res)=>{
 
     
 
-    const Punto_Usuario1=await Punto_Usuario.destroy({
-      where:{
-        PuntoId:punto.id,
-      }
-    })
-
     
-
-    res.status(200).send({ mensaje: "Punto realizado", res: true,punto:punto });
-
 
   }catch(e){
     console.error("Error al realizar la operación: ", e);
@@ -274,27 +367,7 @@ app.post('/punto-realizado',async(req,res)=>{
 
 
 
-app.post('/terminar-punto', async (req, res) => {
-  try {
-    const puntoUsuario = await Punto_Usuario.destroy({
-      where: {
-        id: req.body.id
-      }
-    });
 
-    if (!puntoUsuario) {
-      return res.status(404).send({ mensaje: "Punto de usuario no encontrado", res: false });
-    }
-
-    // Realiza las acciones necesarias para "terminar" el punto de usuario aquí
-
-    // Agrega un mensaje de éxito si es apropiado
-    res.status(200).send({ mensaje: "Operación exitosa", res: true });
-  } catch (e) {
-    console.error("Error al realizar la operación: ", e);
-    res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
-  }
-});
 
 
 app.post('/agregar-consejo',async(req,res)=>{
@@ -462,11 +535,13 @@ app.post('/notas-usuario',async(req,res)=>{
     console.log(usuario)
 
 
-    /*const puntosreciclados=await Punto_Usuario.count({
+    const puntosreciclados=await Punto_Usuario.count({
+      
       where:{
-        UsuarioId:usuario.id
+        UsuarioId:usuario.id,
+        realizado:true
       }
-    })*/
+    })
 
     /*const objetivoscumplidos=await Objetivo_Usuario.count({
       where:{
@@ -490,7 +565,7 @@ app.post('/notas-usuario',async(req,res)=>{
 
 
 
-    res.status(200).send({ mensaje: "Campos encontrados", res: true,puntosreciclados:usuario.puntosrecilados,puntaje:usuario.puntaje,recompesaobtenidas:recompesaobtenidas,usuarios:(poscionusuario+1)});
+    res.status(200).send({ mensaje: "Campos encontrados", res: true,puntosreciclados:puntosreciclados,puntaje:usuario.puntaje,recompesaobtenidas:recompesaobtenidas,usuarios:(poscionusuario+1)});
 
 
 
@@ -879,6 +954,51 @@ app.post('/agregar-comentariouau',async(req,res)=>{
     res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
   }
 })
+
+
+app.post('/agregar-recompesa',async(req,res)=>{
+  try {
+    const { imagen, des, fechainicio,fechafin } = req.body;
+
+    
+    const nuevaRecompensa = await Recompesa.create({
+      imagen: imagen,
+      des: des,
+      fechaInicio: fechainicio,
+      fechaFin:fechafin
+    });
+
+    res.status(201).json({ mensaje: 'Recompensa agregada con éxito', res: true, nuevaRecompensa });
+  } catch (e) {
+    console.error('Error al agregar recompensa:', e);
+    res.status(500).json({ mensaje: 'Error interno en el servidor', res: false });
+  }
+})
+
+app.get('/obtener-recompesa-semanal',async(req,res)=>{
+  try {
+    // Obtener la fecha del primer día de la semana actual (lunes)
+    const inicioSemana = moment().startOf('isoWeek').subtract(1, 'day');
+    // Obtener la fecha del último día de la semana actual (domingo)
+    const finSemana = moment().endOf('isoWeek').subtract(1, 'day');
+
+    // Consultar la recompensa que esté dentro de la semana actual
+    const recompensa = await Recompesa.findOne({
+      where: {
+        fechaInicio: {
+          [Op.between]: [inicioSemana, finSemana] // Buscar recompensas cuya fecha de inicio esté dentro de la semana actual
+        }
+      }
+    });
+
+    res.status(200).json({ mensaje: 'Recompensa semanal obtenida con éxito', res: true, recompensa:recompensa });
+  } catch (e) {
+    console.error('Error al obtener recompensa semanal:', e);
+    res.status(500).json({ mensaje: 'Error interno en el servidor', res: false });
+  }
+})
+
+
 
 
 

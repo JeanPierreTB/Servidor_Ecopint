@@ -11,6 +11,9 @@ export const Punto_Usuario = sequelize.define(
       primaryKey: true,
       autoIncrement: true,
     },
+    realizado:{
+      type:DataTypes.BOOLEAN
+    }
   },
   {
     freezeTableName: true,
