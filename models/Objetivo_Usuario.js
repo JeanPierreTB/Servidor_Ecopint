@@ -12,7 +12,8 @@ export const  Objetivo_Usuario= sequelize.define(
       autoIncrement: true,
     },
     porcentaje:{
-        type:DataTypes.INTEGER
+        type:DataTypes.INTEGER,
+        defaultValue:0
     }
   },
   {

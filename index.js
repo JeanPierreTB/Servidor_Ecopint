@@ -1,5 +1,5 @@
 import express from "express";
-import { Sequelize, Op } from "sequelize";
+import { Sequelize, Op, where } from "sequelize";
 import { sequelize } from "./database/database.js";
 import { Usuario } from "./models/Usuario.js";
 import { Punto } from "./models/Punto.js";
@@ -31,6 +31,40 @@ const verificarconexion = async () => {
   }
 };
 
+const verificardia= async()=>{
+  try{
+
+    const fechaHoy = new Date();
+    const fechaAyer = new Date(fechaHoy);
+    fechaAyer.setDate(fechaHoy.getDate() - 1);
+
+// Extraer la parte de fecha de la fecha de ayer
+    const fechaAyerSinHora = fechaAyer.toISOString().split('T')[0];
+
+    console.log(fechaAyerSinHora);
+
+    const recompesa=await Recompesa.findOne({
+      where:{
+        fechaFin:fechaAyerSinHora
+      }
+    })
+
+    if(recompesa){
+      const usuarios=await Usuario.update(
+        {puntaje:0},{where:{}})
+      const objetivos=await Objetivo_Usuario.update(
+        {porcentaje:0},{where:{}})
+       return console.log("Recompesa obtenido",recompesa);
+    }
+
+    return
+
+    
+  }catch(e){
+    console.error("No se pudo saber el dia",e)
+  }
+}
+
 app.use(express.json());
 
 app.post("/insertar-usuario", async (req, res) => {
@@ -43,6 +77,15 @@ app.post("/insertar-usuario", async (req, res) => {
       dni: dni,
       ntelefono: ntelefono
     });
+
+    const objetivos=await Objetivo.findAll({})
+
+    const registrosObjetivoUsuario = objetivos.map(objetivo => ({
+      UsuarioId: userinfo.id,
+      ObjetivoId: objetivo.id,
+    }));
+
+    await Objetivo_Usuario.bulkCreate(registrosObjetivoUsuario);
 
     res.status(201).send({mensaje:"Usuario creado",res:true});
   } catch (e) {
@@ -479,25 +522,35 @@ app.post('/agregar-objetivo',async(req,res)=>{
   }
 })
 
-app.get('/recuperar-objetivo',async(req,res)=>{
-  try{
-    const diaactual=new Date().getDay() || 7;
-    const objetivo=await Objetivo.findAll({
-      where:{
-        dia:diaactual
-      }
-    })
-    if(!objetivo){
+app.get('/recuperar-objetivo', async (req, res) => {
+  try {
+    const diaactual = new Date().getDay() || 7;
+
+    const objetivos = await Objetivo.findAll({
+      where: { dia: diaactual },
+      include: [
+        {
+          model: Usuario,
+          through: { attributes: ['porcentaje'] },
+          attributes: { exclude: ['contrasena', 'dni', 'ntelefono', 'puntaje', 'foto', 'createdAt', 'updatedAt','nombre'] }, // Excluir los campos que no deseas enviar
+          as: 'Usuarios', // Alias para la asociación
+        }
+      ]
+    });
+
+    if (!objetivos || objetivos.length === 0) {
       return res.status(404).send({ mensaje: "Objetivos no encontrados", res: false });
     }
 
-    res.status(200).send({ mensaje: "Objetivos encontrados", res: true,objetivo:objetivo });
+    res.status(200).send({ mensaje: "Objetivos encontrados", res: true, objetivo: objetivos });
 
-  }catch(e){
+  } catch (e) {
     console.error("Error al realizar la operación: ", e);
     res.status(500).send({ mensaje: "Error interno en el servidor", res: false });
   }
-})
+});
+
+
 
 
 app.post('/obtener-usuario',async(req,res)=>{
@@ -958,14 +1011,20 @@ app.post('/agregar-comentariouau',async(req,res)=>{
 
 app.post('/agregar-recompesa',async(req,res)=>{
   try {
-    const { imagen, des, fechainicio,fechafin } = req.body;
+    const { imagen, des, fechainicio,fechafin ,puntaje} = req.body;
+    const fechaInicio = new Date(fechainicio);
+    const fechaFin = new Date(fechafin);
 
+    // Obtener solo la parte de la fecha en formato ISO8601 (YYYY-MM-DD)
+    const fechaInicioISO = fechaInicio.toISOString().split('T')[0];
+    const fechaFinISO = fechaFin.toISOString().split('T')[0];
     
     const nuevaRecompensa = await Recompesa.create({
       imagen: imagen,
       des: des,
-      fechaInicio: fechainicio,
-      fechaFin:fechafin
+      fechaInicio: fechaInicioISO,
+      fechaFin:fechaFinISO,
+      puntaje:puntaje
     });
 
     res.status(201).json({ mensaje: 'Recompensa agregada con éxito', res: true, nuevaRecompensa });
@@ -987,9 +1046,14 @@ app.get('/obtener-recompesa-semanal',async(req,res)=>{
       where: {
         fechaInicio: {
           [Op.between]: [inicioSemana, finSemana] // Buscar recompensas cuya fecha de inicio esté dentro de la semana actual
-        }
+        },
+        idUsuario:null
       }
     });
+
+    if(!recompensa){
+      return res.status(200).json({mensaje:"Recompesa ya obtenida",res:true,recompensa:recompensa})
+    }
 
     res.status(200).json({ mensaje: 'Recompensa semanal obtenida con éxito', res: true, recompensa:recompensa });
   } catch (e) {
@@ -1014,4 +1078,5 @@ app.get('/',(req,res)=>{
 app.listen(port, () => {
   console.log(`Servidor ejecutándose en puerto ${port}`);
   verificarconexion();
+  verificardia();
 });
