@@ -13,9 +13,13 @@ export const Comentario=sequelize.define("Comentario",{
     },
     tipo:{
         type:DataTypes.INTEGER
+    },
+    fecha:{
+        type:DataTypes.DATEONLY
     }
 },{
-    freezeTableName:true
+    freezeTableName:true,
+    timestamps:false
 })
 
 Usuario.hasMany(Comentario,{

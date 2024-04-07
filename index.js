@@ -304,10 +304,14 @@ app.post('/punto-cancelado-qr',async(req,res)=>{
         return res.status(404).send({ mensaje: "Usuario no encontrado", res: false });
       }
 
+      const fechaHoy = new Date();
+      const fechaHoySinHora = fechaHoy.toISOString().split('T')[0];
+
       const Punto_Usuario1=await Punto_Usuario.update(
         { 
           realizado:true,
-          PuntoId:null
+          PuntoId:null,
+          fecha:fechaHoySinHora
         
         },
         {
@@ -461,11 +465,14 @@ app.post('/realizar-comentario',async(req,res)=>{
     if(!usuarioc){
       return res.status(404).send({ mensaje: "Punto no encontrado", res: false });
     }*/
+    const fechaHoy = new Date();
+    const fechaHoySinHora = fechaHoy.toISOString().split('T')[0];
 
     const nuevocomentario=await Comentario.create({
       des:req.body.des,
       tipo:req.body.tipo,
-      idUsuario:req.body.id
+      idUsuario:req.body.id,
+      fecha:fechaHoySinHora
     })
     res.status(201).send({mensaje:"Comentario creado",res:true});
 
@@ -479,15 +486,14 @@ app.post('/realizar-comentario',async(req,res)=>{
 app.get('/obtener-comentarios', async (req, res) => {
   try {
     // Obtén la fecha actual
+  
     const fechaHoy = new Date();
-    fechaHoy.setHours(0, 0, 0, 0);  // Establece la hora a las 00:00:00:000 para obtener los comentarios de todo el día
+    const fechaHoySinHora = fechaHoy.toISOString().split('T')[0];
 
     // Realiza la consulta para obtener los comentarios del día de hoy
     const comentariosHoy = await Comentario.findAll({
       where: {
-        createdAt: {
-          [Op.gte]: fechaHoy,
-        },
+        fecha:fechaHoySinHora,
         tipo:{
           [Op.ne]: 4
         }
@@ -522,7 +528,7 @@ app.post('/agregar-objetivo',async(req,res)=>{
   }
 })
 
-app.get('/recuperar-objetivo', async (req, res) => {
+app.post('/recuperar-objetivo', async (req, res) => {
   try {
     const diaactual = new Date().getDay() || 7;
 
@@ -532,6 +538,7 @@ app.get('/recuperar-objetivo', async (req, res) => {
         {
           model: Usuario,
           through: { attributes: ['porcentaje'] },
+          where:{id:req.body.id},
           attributes: { exclude: ['contrasena', 'dni', 'ntelefono', 'puntaje', 'foto', 'createdAt', 'updatedAt','nombre'] }, // Excluir los campos que no deseas enviar
           as: 'Usuarios', // Alias para la asociación
         }
@@ -783,9 +790,14 @@ app.post('/agregar-amigos',async(req,res)=>{
         nombre:req.body.nombre
       }
     })
+
+    const fechaHoy = new Date();
+    const fechaHoySinHora = fechaHoy.toISOString().split('T')[0];
+
     const usuario=await Usuario_Usuario.create({
       UsuarioAId:req.body.idusuario,
-      UsuarioBId:usuarioi.id
+      UsuarioBId:usuarioi.id,
+      fecha:fechaHoySinHora
     })
 
     /*const usuario1=await Usuario_Usuario.create({
@@ -988,12 +1000,15 @@ app.post('/recuperar-comentariouau',async(req,res)=>{
 app.post('/agregar-comentariouau',async(req,res)=>{
   try{
 
+    const fechaHoy = new Date();
+    const fechaHoySinHora = fechaHoy.toISOString().split('T')[0];
   
       const comentario=await Comentario.create({
         des:req.body.des,
         tipo:req.body.tipo,
         idUsuario:req.body.id_usuario,
-        idamigo:req.body.id_amigo
+        idamigo:req.body.id_amigo,
+        fecha:fechaHoySinHora
       })
     
 
@@ -1046,13 +1061,14 @@ app.get('/obtener-recompesa-semanal',async(req,res)=>{
       where: {
         fechaInicio: {
           [Op.between]: [inicioSemana, finSemana] // Buscar recompensas cuya fecha de inicio esté dentro de la semana actual
-        },
-        idUsuario:null
+        }
       }
     });
 
+    
+
     if(!recompensa){
-      return res.status(200).json({mensaje:"Recompesa ya obtenida",res:true,recompensa:recompensa})
+      return res.status(200).json({mensaje:"Recompesa no disponible",res:false,recompensa:recompensa})
     }
 
     res.status(200).json({ mensaje: 'Recompensa semanal obtenida con éxito', res: true, recompensa:recompensa });
@@ -1061,6 +1077,417 @@ app.get('/obtener-recompesa-semanal',async(req,res)=>{
     res.status(500).json({ mensaje: 'Error interno en el servidor', res: false });
   }
 })
+
+
+
+app.post('/avance-objetivos-1',async(req,res)=>{
+  try{
+    
+    const fechaHoy = new Date();
+    const fechaHoySinHora = fechaHoy.toISOString().split('T')[0];
+
+    const puntosrealizado=await Punto_Usuario.count({
+      where:{
+        UsuarioId:req.body.id,
+        realizado:true,
+        fecha:fechaHoySinHora
+      }
+    })
+
+    const comentarios=await Comentario.count({
+      where:{
+        idUsuario:req.body.id,
+        idamigo:null,
+        fecha:fechaHoySinHora
+      }
+    })
+
+    if(puntosrealizado>0 || comentarios>0){
+      await actualizarobjetivos(1,req.body.id,puntosrealizado,3);
+      await actualizarobjetivos(2,req.body.id,comentarios,3);
+      res.status(200).json({ mensaje: 'Objetivos Actualizados', res: true});
+
+    }
+    else{
+      res.status(200).json({ mensaje: 'Objetivos no actualizados', res: false});
+
+    }
+
+  }catch(e){
+    console.error('Error al obtener recompensa semanal:', e);
+    res.status(500).json({ mensaje: 'Error interno en el servidor', res: false });
+  }
+})
+
+
+app.post('/avance-objetivos-2',async(req,res)=>{
+  try{
+    const fechaHoy = new Date();
+    const fechaHoySinHora = fechaHoy.toISOString().split('T')[0];
+
+    const puntosrealizado=await Punto_Usuario.count({
+      where:{
+        UsuarioId:req.body.id,
+        realizado:true,
+        fecha:fechaHoySinHora
+      }
+    })
+
+    const comentariosp=await Comentario.count({
+      where:{
+        idUsuario:req.body.id,
+        idamigo:{ [Op.not]: null },
+        fecha:fechaHoySinHora
+      }
+    })
+
+    if(puntosrealizado>0 || comentariosp>0){
+      await actualizarobjetivos(3,req.body.id,puntosrealizado,3);
+      await actualizarobjetivos(4,req.body.id,comentariosp,1);
+      res.status(200).json({ mensaje: 'Objetivos Actualizados', res: true});
+
+    }else{
+      res.status(200).json({ mensaje: 'Objetivos no actualizados', res: false});
+
+    }
+  }catch(e){
+    console.error('Error al obtener recompensa semanal:', e);
+    res.status(500).json({ mensaje: 'Error interno en el servidor', res: false });
+  }
+})
+
+
+app.post('/avance-objetivos-3',async(req,res)=>{
+  try{
+    const fechaHoy = new Date();
+    const fechaHoySinHora = fechaHoy.toISOString().split('T')[0];
+
+    const puntosrealizado=await Punto_Usuario.count({
+      where:{
+        UsuarioId:req.body.id,
+        realizado:true,
+        fecha:fechaHoySinHora
+      }
+    })
+
+    const comentarios=await Comentario.count({
+      where:{
+        idusuario:req.body.id,
+        idamigo:null,
+        fecha:fechaHoySinHora
+      }
+    })
+
+    if(puntosrealizado>0 || comentarios>0){
+      await actualizarobjetivos(5,req.body.id,puntosrealizado,2);
+      await actualizarobjetivos(6,req.body.id,comentarios,2);
+      res.status(200).json({ mensaje: 'Objetivos Actualizados', res: true});
+
+    }else{
+      res.status(200).json({ mensaje: 'Objetivos no actualizados', res: false});
+
+    }
+  }catch(e){
+    console.error('Error al obtener recompensa semanal:', e);
+    res.status(500).json({ mensaje: 'Error interno en el servidor', res: false });
+  }
+})
+
+
+app.post('/avance-objetivos-4',async(req,res)=>{
+  try{
+    const fechaHoy = new Date();
+    const fechaHoySinHora = fechaHoy.toISOString().split('T')[0];
+
+    const puntosrealizado=await Punto_Usuario.count({
+      where:{
+        UsuarioId:req.body.id,
+        realizado:true,
+        fecha:fechaHoySinHora
+      }
+    })
+
+    const amigos=await Usuario_Usuario.count({
+      where:{
+        [Op.or]:[
+          {UsuarioAId:req.body.id},
+          {UsuarioBId:req.body.id}
+        ],fecha:fechaHoySinHora
+      }
+    })
+
+    if(puntosrealizado>0 || amigos>0){
+      await actualizarobjetivos(8,req.body.id,puntosrealizado,6);
+      await actualizarobjetivos(9,req.body.id,amigos,3);
+      res.status(200).json({ mensaje: 'Objetivos Actualizados', res: true});
+    }else{
+      res.status(200).json({ mensaje: 'Objetivos no actualizados', res: false});
+
+    }
+  }catch(e){
+    console.error('Error al obtener recompensa semanal:', e);
+    res.status(500).json({ mensaje: 'Error interno en el servidor', res: false });
+  }
+})
+
+
+app.post('/avance-objetivos-5',async(req,res)=>{
+  try{
+    const fechaHoy = new Date();
+    const fechaHoySinHora = fechaHoy.toISOString().split('T')[0];
+
+    const puntosrealizado=await Punto_Usuario.count({
+      where:{
+        UsuarioId:req.body.id,
+        realizado:true,
+        fecha:fechaHoySinHora
+      }
+    })
+
+    const comentarios=await Comentario.count({
+      where:{
+        idUsuario:req.body.id,
+        idamigo:null,
+        fecha:fechaHoySinHora
+      }
+    })
+
+    if(puntosrealizado>0 || comentarios>0){
+      await actualizarobjetivos(9,req.body.id,puntosrealizado,8);
+      await actualizarobjetivos(10,req.body.id,comentarios,3);
+      res.status(200).json({ mensaje: 'Objetivos Actualizados', res: true});
+
+    }else{
+      res.status(200).json({ mensaje: 'Objetivos no actualizados', res: false});
+
+    }
+  }catch(e){
+    console.error('Error al obtener recompensa semanal:', e);
+    res.status(500).json({ mensaje: 'Error interno en el servidor', res: false });
+  }
+})
+
+
+
+
+
+
+app.post('/avance-objetivos-6',async(req,res)=>{
+  try{
+
+    
+
+    const fechaHoy = new Date();
+    const fechaHoySinHora = fechaHoy.toISOString().split('T')[0];
+
+    //primer objetivo
+    const puntosrealizado=await Punto_Usuario.count({
+      where:{
+        UsuarioId:req.body.id,
+        realizado:true,
+        fecha:fechaHoySinHora
+      }
+    })
+
+
+    //segundo objetivo
+    const amigos=await Usuario_Usuario.count({
+      where:{
+        [Op.or]:[
+          {UsuarioAId:req.body.id},
+          {UsuarioBId:req.body.id}
+        ],fecha:fechaHoySinHora
+      }
+    })
+
+    if(puntosrealizado>0 || amigos>0){
+      await actualizarobjetivos(11,req.body.id,puntosrealizado,5);
+      await actualizarobjetivos(12,req.body.id,amigos,2);
+      res.status(200).json({ mensaje: 'Objetivos Actualizados', res: true});
+    }
+    else{
+      res.status(200).json({ mensaje: 'Objetivos no actualizados', res: false});
+    }
+
+
+  
+
+  }catch(e){
+    console.error('Error al obtener recompensa semanal:', e);
+    res.status(500).json({ mensaje: 'Error interno en el servidor', res: false });
+  }
+})
+
+
+app.post('/avance-objetivos-7',async(req,res)=>{
+  try{
+    
+
+    const fechaHoy = new Date();
+    const fechaHoySinHora = fechaHoy.toISOString().split('T')[0];
+
+    const comentarios=await Comentario.count({
+      where:{
+        idUsuario:req.body.id,
+        idamigo:null,
+        fecha:fechaHoySinHora
+      }
+    })
+
+    const puntosrealizados=await Punto_Usuario.count({
+      where:{
+        UsuarioId:req.body.id,
+        realizado:true,
+        fecha:fechaHoySinHora
+      }
+    })
+
+    if(comentarios>0 || puntosrealizados>0){
+      await actualizarobjetivos(13,req.body.id,comentarios,2);
+      await actualizarobjetivos(14,req.body.id,puntosrealizados,1);
+
+      res.status(200).json({ mensaje: 'Objetivos Actualizados', res: true});
+      
+
+    }
+    else{
+      res.status(200).json({ mensaje: 'Objetivos no actualizados', res: false});
+    }
+
+  }catch(e){
+    console.error('Error al obtener recompensa semanal:', e);
+    res.status(500).json({ mensaje: 'Error interno en el servidor', res: false });
+  }
+})
+
+
+
+app.post('/verificar-recompensa', async (req, res) => {
+  try {
+      const fechaHoy = new Date();
+      const fechaHoySinHora = fechaHoy.toISOString().split('T')[0];
+      const usuario = await Usuario.findOne({
+          where: {
+              id: req.body.id
+          }
+      });
+
+      const recompensa = await Recompesa.findOne({
+          where: {
+              fechaInicio: {
+                  [Op.lte]: fechaHoySinHora // fechaInicio <= fechaHoySinHora
+              },
+              fechaFin: {
+                  [Op.gte]: fechaHoySinHora // fechaFin >= fechaHoySinHora
+              }
+          }
+      });
+
+      if (recompensa) {
+          if (recompensa.idUsuario === req.body.id) {
+              return res.status(200).json({ mensaje: 'Recompensa ya obtenida por este usuario', res: true });
+          } else if (recompensa.idUsuario !== null) {
+              return res.status(200).json({ mensaje: 'Recompensa ya obtenida por otro usuario', res: true});
+          } else {
+              if (usuario.puntaje >= recompensa.puntaje) {
+                  await Recompesa.update({
+                      idUsuario: usuario.id
+                  }, {
+                      where: {
+                          id: recompensa.id
+                      }
+                  });
+
+                  
+                  return res.status(200).json({ mensaje: 'Recompensa obtenida', res: true });
+              } else {
+                  return res.status(200).json({ mensaje: 'Recompensa no obtenida, puntaje insuficiente', res: false });
+              }
+          }
+      } else {
+          return res.status(200).json({ mensaje: 'No hay recompensas disponibles', res: false });
+      }
+  } catch (error) {
+      console.error('Error al obtener recompensa semanal:', error);
+      return res.status(500).json({ mensaje: 'Error interno en el servidor', res: false });
+  }
+});
+
+
+app.post('/actualizar-puntaje', async (req, res) => {
+  try {
+      const recompesa = await Recompesa.update(
+          {
+              puntaje: req.body.puntaje
+          },
+          {
+              where: {
+                  id: req.body.id
+              }
+          }
+      );
+
+      return res.status(200).json({ mensaje: 'Recompensa Actualizada', res: true, recompesa: recompesa });
+
+  } catch (error) {
+      console.error('Error al actualizar puntaje:', error);
+      return res.status(500).json({ mensaje: 'Error interno en el servidor', res: false });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+async function actualizarobjetivos(ObjetivoId, UsuarioId, cantidad, total) {
+  let data;
+
+  try {
+    data = await Objetivo_Usuario.findOne({
+      where: {
+        ObjetivoId: ObjetivoId,
+        UsuarioId: UsuarioId
+      }
+    });
+  } catch (error) {
+    console.error('Error al obtener datos del objetivo del usuario:', error);
+    throw error;
+  }
+
+  if (data && data.porcentaje === 100) {
+    console.log('El objetivo ya está completo.');
+    return;
+  }
+
+  let res = (cantidad / total) * 100;
+
+  if (res >= 99.9) {
+    try {
+      const objetivo = await Objetivo.findOne({ where: { id: ObjetivoId } });
+      const usuario = await Usuario.findOne({ where: { id: UsuarioId } });
+
+      await Usuario.update({ puntaje: usuario.puntaje + objetivo.puntos }, { where: { id: UsuarioId } });
+    } catch (error) {
+      console.error('Error al actualizar puntaje:', error);
+      throw error;
+    }
+  }
+
+  try {
+    await Objetivo_Usuario.update({ porcentaje: res }, { where: { ObjetivoId: ObjetivoId, UsuarioId: UsuarioId } });
+  } catch (error) {
+    console.error('Error al actualizar porcentaje:', error);
+    throw error;
+  }
+}
+
 
 
 

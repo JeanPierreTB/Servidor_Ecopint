@@ -11,6 +11,9 @@ export const  Usuario_Usuario= sequelize.define(
       type: DataTypes.INTEGER,
       primaryKey: true,
       autoIncrement: true,
+    },
+    fecha:{
+      type:DataTypes.DATEONLY,
     }
   },
   {

@@ -13,6 +13,9 @@ export const Punto_Usuario = sequelize.define(
     },
     realizado:{
       type:DataTypes.BOOLEAN
+    },
+    fecha:{
+      type:DataTypes.DATEONLY,
     }
   },
   {
