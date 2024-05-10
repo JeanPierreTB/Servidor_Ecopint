@@ -117,6 +117,27 @@ app.post("/verificar-usuario", async (req, res) => {
 });
 
 
+app.post("/usuario-existente",async(req,res)=>{
+  try{
+    const usuario=await Usuario.findOne({
+      where:{
+        nombre:req.body.nombre
+      }
+    })
+    if(usuario){
+      res.status(200).json({ mensaje: "Usuario existe",res:true,usuario:usuario});
+
+    }else{
+      res.status(401).json({ mensaje: "Usuario no existe",res:false });
+
+    }
+  }catch(e){
+    console.error("Error al verificar el usuario: ", e);
+    res.status(500).json({ mensaje: "Error interno del servidor",res:false});
+  }
+})
+
+
 
   app.post('/cambio_contra', async (req, res) => {
     try {
@@ -142,14 +163,14 @@ app.post("/verificar-usuario", async (req, res) => {
 
 app.post('/agregar-punto', async (req, res) => {
   try {
-    const { latitud, longitud, lugar, puntos } = req.body;
+    const { latitud, longitud, lugar,tipo } = req.body;
 
     // Generar el código QR con la información del punto
     const qrCodeData = JSON.stringify({
       latitud: latitud,
       longitud: longitud,
       lugar: lugar,
-      puntos: puntos
+      tipo:tipo
     });
 
     // Crear el código QR y obtener su representación en base64
@@ -160,8 +181,8 @@ app.post('/agregar-punto', async (req, res) => {
       latitud: latitud,
       longitud: longitud,
       lugar: lugar,
-      puntos: puntos,
-      codigoqr: qrCodeBase64
+      codigoqr: qrCodeBase64,
+      tipo:tipo
     });
 
     res.status(201).send({
@@ -217,7 +238,8 @@ app.post('/realizar-punto', async (req, res) => {
     await Punto_Usuario.create({
       UsuarioId: req.body.idu,
       PuntoId: punto.id,
-      realizado:false
+      realizado:false,
+      cantidad:0
     });
 
     res.status(200).send({ mensaje: "Operación exitosa", res: true });
@@ -227,12 +249,13 @@ app.post('/realizar-punto', async (req, res) => {
   }
 });
 
-app.get('/obtener-punto-realizar', async (req, res) => {
+app.post('/obtener-punto-realizar', async (req, res) => {
   try {
     // Obtener todos los registros de Punto_Usuario
     const puntosUsuario = await Punto_Usuario.findAll({
       where:{
-        realizado:false
+        realizado:false,
+        UsuarioId:req.body.usuario
       }
     });
 
@@ -266,7 +289,7 @@ app.post('/punto-cancelado-qr',async(req,res)=>{
           latitud:req.body.latitud,
           longitud:req.body.longitud,
           lugar:req.body.lugar,
-          puntos:req.body.puntos
+          tipo:req.body.tipo
         }
         
       })
@@ -285,11 +308,34 @@ app.post('/punto-cancelado-qr',async(req,res)=>{
       if(!usuario){
         return res.status(404).send({ mensaje: "Usuario no encontrado", res: false });
       }
+
+      const cantidad=req.body.cantidad;
+      const usuariop=usuario.puntaje;
+      let puntajenuevo;
+
+      switch(punto.tipo){
+        case "Papel":
+          puntajenuevo=usuariop+(cantidad*3);
+          break;
+        case "Plástico":
+          puntajenuevo=usuariop+(cantidad*3);
+          break;
+        case "Metal":
+          puntajenuevo=usuariop+(cantidad*3);
+          break;
+        case "Baterias":
+          puntajenuevo=usuariop+(cantidad*2);
+          break;
+        case "Ropa":
+          puntajenuevo=usuariop+(cantidad*4)
+          break;
+
+      }
   
   
       const usuarioActualizado = await Usuario.update(
         { 
-          puntaje: usuario.puntaje + punto.puntos
+          puntaje: puntajenuevo
         
         },
         {
@@ -311,7 +357,8 @@ app.post('/punto-cancelado-qr',async(req,res)=>{
         { 
           realizado:true,
           PuntoId:null,
-          fecha:fechaHoySinHora
+          fecha:fechaHoySinHora,
+          cantidad:req.body.cantidad
         
         },
         {
@@ -502,7 +549,8 @@ app.get('/obtener-comentarios', async (req, res) => {
         {
           model:Usuario
         }
-      ]
+      ],
+      order: [['id', 'ASC']]
     });
 
     res.status(200).send({ comentarios: comentariosHoy, res: true });

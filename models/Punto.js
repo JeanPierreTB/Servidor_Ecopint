@@ -16,10 +16,10 @@ export const Punto=sequelize.define("Punto",{
     lugar:{
         type:DataTypes.STRING
     },
-    puntos:{
-        type:DataTypes.INTEGER
-    },
     codigoqr:{
+        type:DataTypes.TEXT
+    },
+    tipo:{
         type:DataTypes.TEXT
     }
 },{

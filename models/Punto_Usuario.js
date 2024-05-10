@@ -16,6 +16,9 @@ export const Punto_Usuario = sequelize.define(
     },
     fecha:{
       type:DataTypes.DATEONLY,
+    },
+    cantidad:{
+      type:DataTypes.INTEGER
     }
   },
   {
